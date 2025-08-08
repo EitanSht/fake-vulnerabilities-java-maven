@@ -1,0 +1,32 @@
+name: KICS (IaC) – SARIF to Code Scanning
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read  # avoids private-repo upload errors
+
+jobs:
+  kics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create results dir
+        run: mkdir -p results-dir
+
+      - name: Run KICS and produce SARIF
+        uses: checkmarx/kics-github-action@v2.1.12
+        with:
+          path: '.'                         # change to 'terraform' etc. if you want
+          output_path: results-dir          # produces results-dir/results.sarif
+          output_formats: 'sarif'
+          ignore_on_exit: results           # don't fail the job on findings
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results-dir/results.sarif

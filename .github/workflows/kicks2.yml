@@ -1,0 +1,45 @@
+name: KICS (IaC) – SARIF + Artifact
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # required for SARIF upload
+  actions: read            # avoids private-repo SARIF upload errors
+
+jobs:
+  kics:
+    runs-on: ubuntu-latest
+    env:
+      SARIF_PATH: results-dir/results.sarif
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create results dir
+        run: mkdir -p results-dir
+
+      - name: Run KICS and produce SARIF
+        uses: checkmarx/kics-github-action@v2.1.12
+        with:
+          path: '.'                # change if you want to scan a subfolder
+          output_path: results-dir # KICS will write results.sarif inside this dir
+          output_formats: 'sarif'
+          ignore_on_exit: results  # don't fail the job just because findings exist
+
+      - name: List outputs (debug)
+        run: ls -la results-dir || true
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ env.SARIF_PATH }}
+
+      - name: Upload SARIF as downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeAnalysisLogs
+          path: ${{ env.SARIF_PATH }}
+          if-no-files-found: error
